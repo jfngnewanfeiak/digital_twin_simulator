@@ -27,6 +27,8 @@ from omni.isaac.sensor import Camera
 from omni.usd import get_world_transform_matrix
 from omni.isaac.core.prims import XFormPrim
 from omni.timeline import get_timeline_interface
+from omni.isaac.dynamic_control import _dynamic_control as dc
+from omni.isaac.core.prims import RigidPrim
 
 # Open the given environment in a new stage
 print(f"Loading Stage {config['env_url']}")
@@ -51,16 +53,29 @@ bbox = bbox.ComputeWorldBound(prim)
 bbox = bbox.ComputeAlignedBox()
 limit = bbox.GetMax()[2]
 
+init_work_pos = get_world_transform_matrix(work_prim)
+dci = dc.acquire_dynamic_control_interface()
+
 timeline = get_timeline_interface()
 timeline.play()
+
+
+mperu = float(UsdGeom.GetStageMetersPerUnit(stage))
 for i in range(steps):
     simulation_app.update()
     
     if limit <= get_world_transform_matrix(work_prim)[3][2]:
         zone_surface_prim.CreateSurfaceVelocityAttr().Set(Gf.Vec3f(0,0,0))
         time.sleep(5)
+        print(get_world_transform_matrix(work_prim))
+        work = RigidPrim('/root/Work')
+        current_work_pos = get_world_transform_matrix(work_prim)
+        work.set_world_pose(position=[init_work_pos[3][0],init_work_pos[3][1],init_work_pos[3][2]])
+        print(get_world_transform_matrix(work_prim))
+        for n in range(10):
+            simulation_app.update()
+            time.sleep(1)
         break
     time.sleep(sim_dt)
-
 timeline.stop()
-print()
+print("finish...")
