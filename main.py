@@ -39,7 +39,7 @@ zone_rigid_prim = UsdPhysics.RigidBodyAPI(prim)
 zone_rigid_prim.CreateKinematicEnabledAttr().Set(True)
 
 zone_surface_prim = PhysxSchema.PhysxSurfaceVelocityAPI(prim)
-zone_surface_prim.CreateSurfaceVelocityAttr().Set(Gf.Vec3f(0,0,0.2))
+zone_surface_prim.CreateSurfaceVelocityAttr().Set(Gf.Vec3f(0,0,0.1))
 
 work_prim = stage.GetPrimAtPath('/root/Work')
 
@@ -48,16 +48,19 @@ sim_time = 60
 steps = int(sim_time / sim_dt)
 bbox = UsdGeom.BBoxCache(Usd.TimeCode.Default(),["default"])
 bbox = bbox.ComputeWorldBound(prim)
-zone_min = bbox.GetBox().GetMin()
-zone_max = bbox.GetBox().GetMax()
+bbox = bbox.ComputeAlignedBox()
+limit = bbox.GetMax()[2]
 
 timeline = get_timeline_interface()
 timeline.play()
 for i in range(steps):
     simulation_app.update()
-    time.sleep(sim_dt)
-    print(get_world_transform_matrix(work_prim))
     
+    if limit <= get_world_transform_matrix(work_prim)[3][2]:
+        zone_surface_prim.CreateSurfaceVelocityAttr().Set(Gf.Vec3f(0,0,0))
+        time.sleep(5)
+        break
+    time.sleep(sim_dt)
 
 timeline.stop()
 print()
