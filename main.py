@@ -33,10 +33,13 @@ from omni.isaac.dynamic_control import _dynamic_control as dc
 from omni.isaac.core.prims import RigidPrim
 
 def on_message(client, userdata, msg):
-    pass
+    data = msg.payload
+    data = data.split(",")
 
 sub = MQTT_SUB(ip_addr='192.168.11.20', port=1883, keep_alive=60, topic='real_feedback_data',
                on_connect=None,on_disconnect=None, on_message=on_message)
+# sub.connect()
+# sub.subscribe()
 # Open the given environment in a new stage
 print(f"Loading Stage {config['env_url']}")
 if not open_stage(config["env_url"]):
