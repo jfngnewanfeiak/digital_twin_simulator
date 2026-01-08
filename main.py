@@ -31,19 +31,24 @@ from omni.isaac.core.prims import XFormPrim
 from omni.timeline import get_timeline_interface
 from omni.isaac.dynamic_control import _dynamic_control as dc
 from omni.isaac.core.prims import RigidPrim
-
-cmd_velocity = 0.0
-work_coordinate = []
+sim_start_flag = True
 def on_message(client, userdata, msg):
-    if msg.topic == "/feedback/velocity":
-        cmd_velocity = msg.payload
-    elif msg.topic == "/vision/work/coordinate":
-        work_coordinate = msg.payload.split(',')
+    topic = msg.topic
+    if topic == "real_feedback_data":
+        data = msg.payload
+        data = data.split(",")
+    elif topic == "start_program":
+        global sim_start_flag
+        sim_start_flag = False
 
-sub = MQTT_SUB(ip_addr='192.168.11.20', port=1883, keep_alive=60, topic='real_feedback_data',
+
+sub = MQTT_SUB(ip_addr='192.168.11.20', port=1883, keep_alive=60, topic=[('real_feedback_data',0),('start_program',0)],
                on_connect=None,on_disconnect=None, on_message=on_message)
-# sub.connect()
-# sub.subscribe()
+
+pub = MQTT_PUB(ip_addr='192.168.11.20', port=1883, topic='ready',on_publish=None,on_connect=None,on_disconnect=None)
+pub.connect()
+sub.connect()
+sub.subscribe()
 # Open the given environment in a new stage
 print(f"Loading Stage {config['env_url']}")
 if not open_stage(config["env_url"]):
@@ -56,7 +61,7 @@ zone_rigid_prim.CreateKinematicEnabledAttr().Set(True)
 
 zone_surface_prim = PhysxSchema.PhysxSurfaceVelocityAPI(prim)
 zone_surface_prim.CreateSurfaceVelocityAttr().Set(Gf.Vec3f(0,0,0.1))
-
+4
 work_prim = stage.GetPrimAtPath('/root/Work')
 
 sim_dt = 1 / 120
@@ -75,6 +80,10 @@ timeline.play()
 
 
 mperu = float(UsdGeom.GetStageMetersPerUnit(stage))
+pub.publish("ok")
+print('wait for touch sensor....')
+while sim_start_flag:
+    pass
 for i in range(steps):
     simulation_app.update()
     
