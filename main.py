@@ -31,7 +31,6 @@ from omni.isaac.core.prims import XFormPrim
 from omni.timeline import get_timeline_interface
 from omni.isaac.dynamic_control import _dynamic_control as dc
 from omni.isaac.core.prims import RigidPrim
-<<<<<<< HEAD
 sim_start_flag = True
 def on_message(client, userdata, msg):
     topic = msg.topic
@@ -41,16 +40,6 @@ def on_message(client, userdata, msg):
     elif topic == "start_program":
         global sim_start_flag
         sim_start_flag = False
-=======
-
-cmd_velocity = 0.0
-work_coordinate = []
-def on_message(client, userdata, msg):
-    if msg.topic == "/feedback/velocity":
-        cmd_velocity = msg.payload
-    elif msg.topic == "/vision/work/coordinate":
-        work_coordinate = msg.payload.split(',')
->>>>>>> origin/main
 
 
 sub = MQTT_SUB(ip_addr='192.168.11.20', port=1883, keep_alive=60, topic=[('real_feedback_data',0),('start_program',0)],
