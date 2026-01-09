@@ -48,7 +48,7 @@ def on_message(client, userdata, msg):
         work_positions.append(json.loads(msg.payload))
         work_positions[-1]['timestamp'] = time.time() - timeline_start
     elif topic == 'ev3/data':
-        ev3_data.append(json.lodas(msg.payload))
+        ev3_data.append(json.loads(msg.payload))
         ev3_data[-1]['timestamp'] = time.time() - timeline_start
         
 
