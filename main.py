@@ -13,7 +13,7 @@ config = {
         "headless": False,
     },
  
-    f"env_url": f"{Path.home()}/Documents/conveyor.usdc",
+    f"env_url": f"{Path.home()}/Documents/conveyor122.usdc",
     "close_app_after_run": False
 }
 
@@ -47,12 +47,14 @@ def on_message(client, userdata, msg):
         sim_start_flag = False
     elif topic == "work_position":
         global work_positions
-        work_positions.append(json.loads(msg.payload))
-        work_positions[-1]['timestamp'] = time.time() - timeline_start
+        if timeline_start != None:
+            work_positions.append(json.loads(msg.payload))
+            work_positions[-1]['timestamp'] = time.time() - timeline_start
     elif topic == 'ev3/data':
         global ev3_data
-        ev3_data.append(json.loads(msg.payload))
-        ev3_data[-1]['timestamp'] = time.time() - timeline_start
+        if timeline_start != None:
+            ev3_data.append(json.loads(msg.payload))
+            ev3_data[-1]['timestamp'] = time.time() - timeline_start
         
 
 
@@ -70,7 +72,7 @@ if not open_stage(config["env_url"]):
     carb.log_error(f"Could not open stage{config['env_url']}, closing application..")
     simulation_app.close()
 stage = omni.usd.get_context().get_stage()
-prim = stage.GetPrimAtPath("/root/conveyor/Zone")
+prim = stage.GetPrimAtPath("/root/Zone")
 zone_rigid_prim = UsdPhysics.RigidBodyAPI(prim)
 zone_rigid_prim.CreateKinematicEnabledAttr().Set(True)
 
@@ -85,7 +87,7 @@ steps = int(sim_time / sim_dt)
 bbox = UsdGeom.BBoxCache(Usd.TimeCode.Default(),["default"])
 bbox = bbox.ComputeWorldBound(prim)
 bbox = bbox.ComputeAlignedBox()
-limit = bbox.GetMax()[2]
+limit = bbox.GetMin()[1]
 
 init_work_pos = get_world_transform_matrix(work_prim)
 dci = dc.acquire_dynamic_control_interface()
