@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 import numpy as np
+import json
 from isaacsim import SimulationApp
 import time
 from mqtt_publish import MQTT_PUB
@@ -32,6 +33,9 @@ from omni.timeline import get_timeline_interface
 from omni.isaac.dynamic_control import _dynamic_control as dc
 from omni.isaac.core.prims import RigidPrim
 sim_start_flag = True
+timeline_start = None
+work_positions = []
+ev3_data = []
 def on_message(client, userdata, msg):
     topic = msg.topic
     if topic == "real_feedback_data":
@@ -40,9 +44,17 @@ def on_message(client, userdata, msg):
     elif topic == "start_program":
         global sim_start_flag
         sim_start_flag = False
+    elif topic == "work_position":
+        work_positions.append(json.loads(msg.payload))
+        work_positions[-1]['timestamp'] = time.time() - timeline_start
+    elif topic == 'ev3/data':
+        ev3_data.append(json.lodas(msg.payload))
+        ev3_data[-1]['timestamp'] = time.time() - timeline_start
+        
 
 
-sub = MQTT_SUB(ip_addr='192.168.11.20', port=1883, keep_alive=60, topic=[('real_feedback_data',0),('start_program',0)],
+sub = MQTT_SUB(ip_addr='192.168.11.20', port=1883, keep_alive=60, 
+               topic=[('real_feedback_data',0),('start_program',0),('work_position',0),('ev3/data',0)],
                on_connect=None,on_disconnect=None, on_message=on_message)
 
 pub = MQTT_PUB(ip_addr='192.168.11.20', port=1883, topic='ready',on_publish=None,on_connect=None,on_disconnect=None)
@@ -82,6 +94,7 @@ while sim_start_flag:
 
 timeline = get_timeline_interface()
 timeline.play()
+timeline_start = time.time()
 
 
 mperu = float(UsdGeom.GetStageMetersPerUnit(stage))
@@ -91,7 +104,7 @@ for i in range(steps):
     
     if limit <= get_world_transform_matrix(work_prim)[3][2]:
         zone_surface_prim.CreateSurfaceVelocityAttr().Set(Gf.Vec3f(0,0,0))
-        time.sleep(5)
+        # time.sleep(5)
         print(get_world_transform_matrix(work_prim))
         work = RigidPrim('/root/Work')
         current_work_pos = get_world_transform_matrix(work_prim)
@@ -99,8 +112,8 @@ for i in range(steps):
         print(get_world_transform_matrix(work_prim))
         for n in range(10):
             simulation_app.update()
-            time.sleep(1)
+            # time.sleep(1)
         break
-    time.sleep(sim_dt)
+    # time.sleep(sim_dt)
 timeline.stop()
 print("finish...")
