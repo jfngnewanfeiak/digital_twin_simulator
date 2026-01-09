@@ -38,6 +38,7 @@ work_positions = []
 ev3_data = []
 def on_message(client, userdata, msg):
     topic = msg.topic
+    global timeline_start
     if topic == "real_feedback_data":
         data = msg.payload
         data = data.split(",")
