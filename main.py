@@ -45,9 +45,11 @@ def on_message(client, userdata, msg):
         global sim_start_flag
         sim_start_flag = False
     elif topic == "work_position":
+        global work_positions
         work_positions.append(json.loads(msg.payload))
         work_positions[-1]['timestamp'] = time.time() - timeline_start
     elif topic == 'ev3/data':
+        global ev3_data
         ev3_data.append(json.loads(msg.payload))
         ev3_data[-1]['timestamp'] = time.time() - timeline_start
         
