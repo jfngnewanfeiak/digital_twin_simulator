@@ -75,15 +75,17 @@ limit = bbox.GetMax()[2]
 init_work_pos = get_world_transform_matrix(work_prim)
 dci = dc.acquire_dynamic_control_interface()
 
+pub.publish("ok")
+print('wait for touch sensor....')
+while sim_start_flag:
+    pass
+
 timeline = get_timeline_interface()
 timeline.play()
 
 
 mperu = float(UsdGeom.GetStageMetersPerUnit(stage))
-pub.publish("ok")
-print('wait for touch sensor....')
-while sim_start_flag:
-    pass
+
 for i in range(steps):
     simulation_app.update()
     
