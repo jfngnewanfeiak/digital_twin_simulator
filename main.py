@@ -55,9 +55,14 @@ def on_message(client, userdata, msg):
             work_positions[-1]['timestamp'] = time.time() - timeline_start
     elif topic == 'ev3/data':
         global ev3_data
+        global zone_velocity
         if timeline_start != None:
+            r = 0.02 # プーリ半径
             ev3_data.append(json.loads(msg.payload))
             ev3_data[-1]['timestamp'] = time.time() - timeline_start
+            omega_radps = ev3_data[-1]['speed_deg'] * np.pi / 180
+            zone_velocity = omega_radps * r
+            
         
 
 
@@ -79,9 +84,9 @@ prim = stage.GetPrimAtPath("/root/Zone")
 zone_rigid_prim = UsdPhysics.RigidBodyAPI(prim)
 zone_rigid_prim.CreateKinematicEnabledAttr().Set(True)
 
+zone_velocity = 0 # global
 zone_surface_prim = PhysxSchema.PhysxSurfaceVelocityAPI(prim)
-zone_surface_prim.CreateSurfaceVelocityAttr().Set(Gf.Vec3f(0,0,0.1))
-4
+zone_surface_prim.CreateSurfaceVelocityAttr().Set(Gf.Vec3f(0,0,zone_velocity))
 work_prim = stage.GetPrimAtPath('/root/Work')
 
 sim_dt = 1 / 120
@@ -108,8 +113,8 @@ dci = dc.acquire_dynamic_control_interface()
 
 pub.publish("ok")
 print('wait for touch sensor....')
-# while sim_start_flag:
-#     pass
+while sim_start_flag:
+    time.sleep(0.001)
 
 timeline = get_timeline_interface()
 timeline.play()
@@ -119,6 +124,7 @@ timeline_start = time.time()
 mperu = float(UsdGeom.GetStageMetersPerUnit(stage))
 
 for i in range(steps):
+    zone_surface_prim.CreateSurfaceVelocityAttr().Set(Gf.Vec3f(0,zone_velocity,0))
     simulation_app.update()
     
     if limit >= get_world_transform_matrix(work_prim)[3][1]:
