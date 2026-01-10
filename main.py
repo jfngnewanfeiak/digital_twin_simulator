@@ -32,6 +32,9 @@ from omni.isaac.core.prims import XFormPrim
 from omni.timeline import get_timeline_interface
 from omni.isaac.dynamic_control import _dynamic_control as dc
 from omni.isaac.core.prims import RigidPrim
+import omni.kit.actions.core
+
+
 sim_start_flag = True
 timeline_start = None
 work_positions = []
@@ -82,20 +85,31 @@ zone_surface_prim.CreateSurfaceVelocityAttr().Set(Gf.Vec3f(0,0,0.1))
 work_prim = stage.GetPrimAtPath('/root/Work')
 
 sim_dt = 1 / 120
-sim_time = 60
+sim_time = 120
 steps = int(sim_time / sim_dt)
 bbox = UsdGeom.BBoxCache(Usd.TimeCode.Default(),["default"])
 bbox = bbox.ComputeWorldBound(prim)
 bbox = bbox.ComputeAlignedBox()
 limit = bbox.GetMin()[1]
 
+# 照明
+action_registry = omni.kit.actions.core.get_action_registry()
+
+# switches to camera lighting
+action = action_registry.get_action("omni.kit.viewport.menubar.lighting", "set_lighting_mode_camera")
+
+# switches to stage lighting
+# action = action_registry.get_action("omni.kit.viewport.menubar.lighting", "set_lighting_mode_stage")
+
+action.execute()
+
 init_work_pos = get_world_transform_matrix(work_prim)
 dci = dc.acquire_dynamic_control_interface()
 
 pub.publish("ok")
 print('wait for touch sensor....')
-while sim_start_flag:
-    pass
+# while sim_start_flag:
+#     pass
 
 timeline = get_timeline_interface()
 timeline.play()
@@ -107,7 +121,7 @@ mperu = float(UsdGeom.GetStageMetersPerUnit(stage))
 for i in range(steps):
     simulation_app.update()
     
-    if limit <= get_world_transform_matrix(work_prim)[3][2]:
+    if limit >= get_world_transform_matrix(work_prim)[3][1]:
         zone_surface_prim.CreateSurfaceVelocityAttr().Set(Gf.Vec3f(0,0,0))
         # time.sleep(5)
         print(get_world_transform_matrix(work_prim))
