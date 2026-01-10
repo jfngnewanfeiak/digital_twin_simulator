@@ -39,6 +39,7 @@ sim_start_flag = True
 timeline_start = None
 work_positions = []
 ev3_data = []
+deguti_flag = False
 def on_message(client, userdata, msg):
     topic = msg.topic
     global timeline_start
@@ -67,7 +68,8 @@ def on_message(client, userdata, msg):
 
 
 sub = MQTT_SUB(ip_addr='192.168.11.20', port=1883, keep_alive=60, 
-               topic=[('real_feedback_data',0),('start_program',0),('work_position',0),('ev3/data',0)],
+               topic=[('real_feedback_data',0),('start_program',0),
+                      ('work_position',0),('ev3/data',0)],
                on_connect=None,on_disconnect=None, on_message=on_message)
 
 pub = MQTT_PUB(ip_addr='192.168.11.20', port=1883, topic='ready',on_publish=None,on_connect=None,on_disconnect=None)
@@ -96,7 +98,7 @@ bbox = UsdGeom.BBoxCache(Usd.TimeCode.Default(),["default"])
 bbox = bbox.ComputeWorldBound(prim)
 bbox = bbox.ComputeAlignedBox()
 limit = bbox.GetMin()[1]
-
+limit = 0.003 # 実機の方の終了と合わせた
 # 照明
 action_registry = omni.kit.actions.core.get_action_registry()
 
