@@ -143,10 +143,10 @@ action.execute()
 init_work_pos = get_world_transform_matrix(work_prim)
 dci = dc.acquire_dynamic_control_interface()
 
-# pub.publish("ok")
-# print('wait for touch sensor....')
-# while sim_start_flag:
-#     time.sleep(0.001)
+pub.publish("ok")
+print('wait for touch sensor....')
+while sim_start_flag:
+    time.sleep(0.001)
 
 timeline = get_timeline_interface()
 timeline.play()
