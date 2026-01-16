@@ -68,7 +68,13 @@ def on_message(client, userdata, msg):
         deguti_flag = True
             
         
-
+def get_or_add_rotatexyz(prim_path:str,stage):
+    prim = stage.GetPrimAtPath(prim_path)
+    xf = UsdGeom.Xformable(prim)
+    for op in xf.GetOrderedXformOps():
+        if op.GetOpType() == UsdGeom.XformOp.TypeRotateXYZ:
+            return op
+    return xf.AddRotateXYZOp()
 
 sub = MQTT_SUB(ip_addr='192.168.11.20', port=1883, keep_alive=60, 
                topic=[('real_feedback_data',0),('start_program',0),
@@ -103,6 +109,12 @@ bbox = bbox.ComputeWorldBound(prim)
 bbox = bbox.ComputeAlignedBox()
 limit = bbox.GetMin()[1]
 limit = 0.003 # 実機の方の終了と合わせた
+
+left_op = get_or_add_rotatexyz("/root/left_m_rotation_axis",stage)
+right_op = get_or_add_rotatexyz('/root/right_m_rotation_axis', stage)
+z_deg = 30.0
+left_op.Set((0,0,z_deg))
+right_op.Set((0,0,z_deg))
 # 照明
 action_registry = omni.kit.actions.core.get_action_registry()
 
@@ -117,15 +129,20 @@ action.execute()
 init_work_pos = get_world_transform_matrix(work_prim)
 dci = dc.acquire_dynamic_control_interface()
 
-pub.publish("ok")
-print('wait for touch sensor....')
-while sim_start_flag:
-    time.sleep(0.001)
+# pub.publish("ok")
+# print('wait for touch sensor....')
+# while sim_start_flag:
+#     time.sleep(0.001)
 
 timeline = get_timeline_interface()
 timeline.play()
 timeline_start = time.time()
 
+left_op = get_or_add_rotatexyz("/root/left_m_rotation_axis",stage)
+right_op = get_or_add_rotatexyz('/root/right_m_rotation_axis', stage)
+z_deg = 10
+left_op.Set((-z_deg,0,0))
+# right_op.Set((z_deg,0,0))
 
 mperu = float(UsdGeom.GetStageMetersPerUnit(stage))
 
