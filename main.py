@@ -63,13 +63,17 @@ def on_message(client, userdata, msg):
             ev3_data[-1]['timestamp'] = time.time() - timeline_start
             omega_radps = ev3_data[-1]['speed_deg'] * np.pi / 180
             zone_velocity = omega_radps * r
+    elif topic == 'deguti':
+        global deguti_flag
+        deguti_flag = True
             
         
 
 
 sub = MQTT_SUB(ip_addr='192.168.11.20', port=1883, keep_alive=60, 
                topic=[('real_feedback_data',0),('start_program',0),
-                      ('work_position',0),('ev3/data',0)],
+                      ('work_position',0),('ev3/data',0),
+                      ('deguti',0)],
                on_connect=None,on_disconnect=None, on_message=on_message)
 
 pub = MQTT_PUB(ip_addr='192.168.11.20', port=1883, topic='ready',on_publish=None,on_connect=None,on_disconnect=None)
@@ -128,6 +132,8 @@ mperu = float(UsdGeom.GetStageMetersPerUnit(stage))
 for i in range(steps):
     zone_surface_prim.CreateSurfaceVelocityAttr().Set(Gf.Vec3f(0,zone_velocity,0))
     simulation_app.update()
+    if deguti_flag:
+        pass
     
     if limit >= get_world_transform_matrix(work_prim)[3][1]:
         zone_surface_prim.CreateSurfaceVelocityAttr().Set(Gf.Vec3f(0,0,0))
