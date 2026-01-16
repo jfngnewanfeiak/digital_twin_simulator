@@ -38,6 +38,8 @@ import omni.kit.actions.core
 sim_start_flag = True
 timeline_start = None
 work_positions = []
+work_position = None
+work_yaw = None
 ev3_data = []
 deguti_flag = False
 def on_message(client, userdata, msg):
@@ -51,9 +53,14 @@ def on_message(client, userdata, msg):
         sim_start_flag = False
     elif topic == "work_position":
         global work_positions
+        global work_position
+        global work_yaw
         if timeline_start != None:
             work_positions.append(json.loads(msg.payload))
             work_positions[-1]['timestamp'] = time.time() - timeline_start
+            work_position = work_positions[-1]['coordinate']
+            # 軸合わせ
+            work_yaw = np.rad2deg(work_positions[-1]['yaw']) - 90
     elif topic == 'ev3/data':
         global ev3_data
         global zone_velocity
@@ -66,7 +73,13 @@ def on_message(client, userdata, msg):
     elif topic == 'deguti':
         global deguti_flag
         deguti_flag = True
-            
+
+# radから始原数に
+def quat_xyzw_from_yaw_world(theta_rad):
+    qd = Gf.Rotation(Gf.Vec3d(1,0,0),theta_rad).GetQuat()
+    x,y,z = qd.GetImaginary()
+    w = qd.GetReal()
+    return (float(x),float(y),float(z),float(w))
         
 def get_or_add_rotatexyz(prim_path:str,stage):
     prim = stage.GetPrimAtPath(prim_path)
@@ -98,7 +111,8 @@ zone_rigid_prim.CreateKinematicEnabledAttr().Set(True)
 
 zone_velocity = 0 # global
 zone_surface_prim = PhysxSchema.PhysxSurfaceVelocityAPI(prim)
-zone_surface_prim.CreateSurfaceVelocityAttr().Set(Gf.Vec3f(0,0,zone_velocity))
+zone_surf_attr = zone_surface_prim.CreateSurfaceVelocityAttr()
+zone_surf_attr.Set(Gf.Vec3f(0,zone_velocity,0))
 work_prim = stage.GetPrimAtPath('/root/Work')
 
 sim_dt = 1 / 120
@@ -138,6 +152,7 @@ timeline = get_timeline_interface()
 timeline.play()
 timeline_start = time.time()
 
+# 整列用の方
 left_op = get_or_add_rotatexyz("/root/left_m_rotation_axis",stage)
 right_op = get_or_add_rotatexyz('/root/right_m_rotation_axis', stage)
 z_deg = 10
@@ -145,18 +160,22 @@ left_op.Set((-z_deg,0,0))
 # right_op.Set((z_deg,0,0))
 
 mperu = float(UsdGeom.GetStageMetersPerUnit(stage))
-
+work = RigidPrim('/root/Work')
 for i in range(steps):
-    zone_surface_prim.CreateSurfaceVelocityAttr().Set(Gf.Vec3f(0,zone_velocity,0))
+    zone_surf_attr.Set(Gf.Vec3f(0,zone_velocity,0))
+    if work_yaw is not None:
+        pos_now,_ = work.get_world_pose()
+        work.set_world_pose(position=pos_now,orientation=quat_xyzw_from_yaw_world(work_yaw))
     simulation_app.update()
+    
     if deguti_flag:
         pass
     
     if limit >= get_world_transform_matrix(work_prim)[3][1]:
-        zone_surface_prim.CreateSurfaceVelocityAttr().Set(Gf.Vec3f(0,0,0))
+        zone_surf_attr.Set(Gf.Vec3f(0,0,0))
         # time.sleep(5)
         print(get_world_transform_matrix(work_prim))
-        work = RigidPrim('/root/Work')
+        
         current_work_pos = get_world_transform_matrix(work_prim)
         work.set_world_pose(position=[init_work_pos[3][0],init_work_pos[3][1],init_work_pos[3][2]])
         print(get_world_transform_matrix(work_prim))
