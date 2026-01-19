@@ -38,6 +38,8 @@ import omni.kit.actions.core
 sim_start_flag = True
 timeline_start = None
 work_positions = []
+work_position = None
+work_yaw = None
 ev3_data = []
 deguti_flag = False
 def on_message(client, userdata, msg):
@@ -51,9 +53,13 @@ def on_message(client, userdata, msg):
         sim_start_flag = False
     elif topic == "work_position":
         global work_positions
+        global work_position
+        global work_yaw
         if timeline_start != None:
             work_positions.append(json.loads(msg.payload))
             work_positions[-1]['timestamp'] = time.time() - timeline_start
+            work_position = work_positions[-1]['coordinate']
+            work_yaw = np.rad2deg(work_positions[-1]['yaw']) - 90
     elif topic == 'ev3/data':
         global ev3_data
         global zone_velocity
