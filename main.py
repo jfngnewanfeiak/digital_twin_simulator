@@ -86,13 +86,24 @@ if not open_stage(config["env_url"]):
     carb.log_error(f"Could not open stage{config['env_url']}, closing application..")
     simulation_app.close()
 stage = omni.usd.get_context().get_stage()
+stage.SetEditTarget(stage.GetSessionLayer())
+# PhysicsScene を取得
+scene = UsdPhysics.Scene.Get(stage, "/root/PhysicsScene")
+# 上書き
+scene.GetGravityDirectionAttr().Set(Gf.Vec3f(0, 0, -1), Usd.TimeCode.Default())
+scene.GetGravityMagnitudeAttr().Set(9.81, Usd.TimeCode.Default())
 prim = stage.GetPrimAtPath("/root/Zone")
 zone_rigid_prim = UsdPhysics.RigidBodyAPI(prim)
-zone_rigid_prim.CreateKinematicEnabledAttr().Set(True)
+# zone_rigid_prim.CreateKinematicEnabledAttr().Set(False)
 
 zone_velocity = 0 # global
-zone_surface_prim = PhysxSchema.PhysxSurfaceVelocityAPI(prim)
-zone_surface_prim.CreateSurfaceVelocityAttr().Set(Gf.Vec3f(0,0,zone_velocity))
+zone_surface_prim = PhysxSchema.PhysxSurfaceVelocityAPI.Apply(prim)
+zone_rb = UsdPhysics.RigidBodyAPI(prim)
+zone_rb.CreateRigidBodyEnabledAttr().Set(True)
+zone_rb.CreateKinematicEnabledAttr().Set(True)
+zone_surf_attr = zone_surface_prim.CreateSurfaceVelocityAttr()
+zone_surf_attr.Set(Gf.Vec3f(0,zone_velocity,0))
+
 work_prim = stage.GetPrimAtPath('/root/Work')
 
 sim_dt = 1 / 120
@@ -102,7 +113,7 @@ bbox = UsdGeom.BBoxCache(Usd.TimeCode.Default(),["default"])
 bbox = bbox.ComputeWorldBound(prim)
 bbox = bbox.ComputeAlignedBox()
 limit = bbox.GetMin()[1]
-limit = 0.003 # 実機の方の終了と合わせた
+limit = -0.5025 # 実機の方の終了と合わせた
 # 照明
 action_registry = omni.kit.actions.core.get_action_registry()
 
@@ -128,25 +139,31 @@ timeline_start = time.time()
 
 
 mperu = float(UsdGeom.GetStageMetersPerUnit(stage))
+work = RigidPrim('/root/Work')
+mag_attr = scene.GetGravityMagnitudeAttr()
+dir_attr = scene.GetGravityDirectionAttr()
+
+print("mag time samples:", mag_attr.GetTimeSamples())
+print("dir time samples:", dir_attr.GetTimeSamples())
 
 for i in range(steps):
-    zone_surface_prim.CreateSurfaceVelocityAttr().Set(Gf.Vec3f(0,zone_velocity,0))
+    zone_surf_attr.Set(Gf.Vec3f(0,zone_velocity / mperu,0))
     simulation_app.update()
     if deguti_flag:
         pass
     
-    if limit >= get_world_transform_matrix(work_prim)[3][1]:
-        zone_surface_prim.CreateSurfaceVelocityAttr().Set(Gf.Vec3f(0,0,0))
-        # time.sleep(5)
-        print(get_world_transform_matrix(work_prim))
-        work = RigidPrim('/root/Work')
-        current_work_pos = get_world_transform_matrix(work_prim)
-        work.set_world_pose(position=[init_work_pos[3][0],init_work_pos[3][1],init_work_pos[3][2]])
-        print(get_world_transform_matrix(work_prim))
-        for n in range(10):
-            simulation_app.update()
-            # time.sleep(1)
-        break
+    # if limit >= get_world_transform_matrix(work_prim)[3][1]:
+    #     zone_surf_attr.Set(Gf.Vec3f(0,0,0))
+    #     # time.sleep(5)
+    #     print(get_world_transform_matrix(work_prim))
+        
+    #     current_work_pos = get_world_transform_matrix(work_prim)
+    #     work.set_world_pose(position=[init_work_pos[3][0],init_work_pos[3][1],init_work_pos[3][2]])
+    #     print(get_world_transform_matrix(work_prim))
+    #     for n in range(10):
+    #         simulation_app.update()
+    #         # time.sleep(1)
+    #     break
     # time.sleep(sim_dt)
 timeline.stop()
 print("finish...")
