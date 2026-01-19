@@ -143,10 +143,10 @@ action.execute()
 init_work_pos = get_world_transform_matrix(work_prim)
 dci = dc.acquire_dynamic_control_interface()
 
-# pub.publish("ok")
-# print('wait for touch sensor....')
-# while sim_start_flag:
-#     time.sleep(0.001)
+pub.publish("ok")
+print('wait for touch sensor....')
+while sim_start_flag:
+    time.sleep(0.001)
 
 timeline = get_timeline_interface()
 timeline.play()
@@ -162,7 +162,7 @@ left_op.Set((-z_deg,0,0))
 mperu = float(UsdGeom.GetStageMetersPerUnit(stage))
 work = RigidPrim('/root/Work')
 for i in range(steps):
-    zone_surf_attr.Set(Gf.Vec3f(0,zone_velocity,0))
+    zone_surf_attr.Set(Gf.Vec3f(0,zone_velocity / mperu,0))
     if work_yaw is not None:
         pos_now,_ = work.get_world_pose()
         work.set_world_pose(position=pos_now,orientation=quat_xyzw_from_yaw_world(work_yaw))
