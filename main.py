@@ -43,7 +43,7 @@ work_yaw = None
 ev3_data = []
 deguti_flag = False
 
-angles = [0,5,10,15,20,25]
+angles = [0, 5, 10, 15, 20, 25]
 def on_message(client, userdata, msg):
     topic = msg.topic
     global timeline_start
@@ -83,6 +83,14 @@ def get_or_add_rotatexyz(prim_path:str,stage):
         if op.GetOpType() == UsdGeom.XformOp.TypeRotateXYZ:
             return op
     return xf.AddRotateXYZOp()
+
+# radから始原数に
+def quat_xyzw_from_yaw_world(theta_rad):
+    qd = Gf.Rotation(Gf.Vec3d(1,0,0),theta_rad).GetQuat()
+    x,y,z = qd.GetImaginary()
+    w = qd.GetReal()
+    return (float(x),float(y),float(z),float(w))
+
 
 def inside_ratio(work_bbox):
     wx1 = work_bbox.GetMin()[0]
@@ -186,13 +194,14 @@ print("mag time samples:", mag_attr.GetTimeSamples())
 print("dir time samples:", dir_attr.GetTimeSamples())
 
 score_list = []
-
+use_yaw = None
 for right_angle in angles:
     for left_angle in angles:
-
         # データ同期 最初の一回だけ
-        # シミュレーションの初期化
         # シミュレーション開始
+        use_yaw = work_yaw
+        pos_init,_ = work.get_world_pose()
+        work.set_world_pose(position=pos_init,orientation=quat_xyzw_from_yaw_world(use_yaw))
         # zoneのvelocity
         zone_surf_attr.Set(Gf.Vec3f(0,zone_velocity/mperu,0))
         # 整列用のやつ角度変更
@@ -201,43 +210,41 @@ for right_angle in angles:
         for i in range(steps):
             simulation_app.update()
             
-        # limitに来たら,整列の可否を計算→ break
-        # ここのlimitはまた後で
-        if limit >= get_world_transform_matrix(work_prim)[3][1]:
-            bbox = UsdGeom.BBoxCache(Usd.TimeCode.Default(),["default"])
-            bbox = bbox.ComputeWorldBound(work_prim)
-            bbox = bbox.ComputeAlignedBox()
-            zone_surf_attr.Set(Gf.Vec3f(0,0,0))
-            # time.sleep(5)
-            print(get_world_transform_matrix(work_prim))
-            
-            current_work_pos = get_world_transform_matrix(work_prim)
-            work.set_world_pose(position=[init_work_pos[3][0],init_work_pos[3][1],init_work_pos[3][2]])
-            print(get_world_transform_matrix(work_prim))
-            # 整列のスコアを計算
-            score = inside_ratio(bbox)
-            score_list.append(score)
-            break
+            # limitに来たら,整列の可否を計算→ break
+            # ここのlimitはまた後で
+            if limit >= get_world_transform_matrix(work_prim)[3][1]:
+                # シミュレーションの初期化
+                zone_surf_attr.Set(Gf.Vec3f(0,0,0))
 
-for i in range(steps):
-    zone_surf_attr.Set(Gf.Vec3f(0,zone_velocity / mperu,0))
-    simulation_app.update()
-    if deguti_flag:
-        pass
+                bbox = UsdGeom.BBoxCache(Usd.TimeCode.Default(),["default"])
+                bbox = bbox.ComputeWorldBound(work_prim)
+                bbox = bbox.ComputeAlignedBox()
+                # 整列のスコアを計算
+                score = inside_ratio(bbox)
+                score_list.append(score)
+                work.set_world_pose(position=[init_work_pos[3][0],init_work_pos[3][1],init_work_pos[3][2]],
+                                    orientation=quat_xyzw_from_yaw_world(work_yaw))
+                break
+
+# for i in range(steps):
+#     zone_surf_attr.Set(Gf.Vec3f(0,zone_velocity / mperu,0))
+#     simulation_app.update()
+#     if deguti_flag:
+#         pass
     
-    if limit >= get_world_transform_matrix(work_prim)[3][1]:
-        zone_surf_attr.Set(Gf.Vec3f(0,0,0))
+#     if limit >= get_world_transform_matrix(work_prim)[3][1]:
+#         zone_surf_attr.Set(Gf.Vec3f(0,0,0))
 
-        # time.sleep(5)
-        print(get_world_transform_matrix(work_prim))
+#         # time.sleep(5)
+#         print(get_world_transform_matrix(work_prim))
         
-        current_work_pos = get_world_transform_matrix(work_prim)
-        work.set_world_pose(position=[init_work_pos[3][0],init_work_pos[3][1],init_work_pos[3][2]])
-        print(get_world_transform_matrix(work_prim))
-        for n in range(10):
-            simulation_app.update()
-            # time.sleep(1)
-        break
-    time.sleep(sim_dt)
+#         current_work_pos = get_world_transform_matrix(work_prim)
+#         work.set_world_pose(position=[init_work_pos[3][0],init_work_pos[3][1],init_work_pos[3][2]])
+#         print(get_world_transform_matrix(work_prim))
+#         for n in range(10):
+#             simulation_app.update()
+#             # time.sleep(1)
+#         break
+#     time.sleep(sim_dt)
 timeline.stop()
 print("finish...")
