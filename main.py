@@ -123,6 +123,10 @@ sub = MQTT_SUB(ip_addr='192.168.11.20', port=1883, keep_alive=60,
 
 pub = MQTT_PUB(ip_addr='192.168.11.20', port=1883, topic='ready',on_publish=None,on_connect=None,on_disconnect=None)
 pub.connect()
+
+best_angle_pub = MQTT_PUB(ip_addr='192.168.11.20',port=1883,topic='best_angle',on_publish=None,on_connect=None,on_disconnect=None)
+best_angle_pub.connect()
+
 sub.connect()
 sub.subscribe()
 # Open the given environment in a new stage
@@ -195,6 +199,7 @@ print("dir time samples:", dir_attr.GetTimeSamples())
 
 score_list = []
 use_yaw = None
+limit_flag = False
 for right_angle in angles:
     for left_angle in angles:
         # データ同期 最初の一回だけ
@@ -224,7 +229,22 @@ for right_angle in angles:
                 score_list.append(score)
                 work.set_world_pose(position=[init_work_pos[3][0],init_work_pos[3][1],init_work_pos[3][2]],
                                     orientation=quat_xyzw_from_yaw_world(work_yaw))
+                limit_flag = True
                 break
+        
+        # limit flag
+        if limit_flag == False:
+            score_list.append(0)
+        else:
+            limit_flag = False
+
+right_idx = int(score_list.index(max(score_list)) / 5)
+left_idx = score_list.index(max(score_list) % 5)
+best_angle = {
+                        "right_angle": angles[right_idx],
+                        "left_angle": angles[left_idx]
+                    }
+best_angle_pub.publish(json.dumps(best_angle))
 
 # for i in range(steps):
 #     zone_surf_attr.Set(Gf.Vec3f(0,zone_velocity / mperu,0))
