@@ -110,7 +110,10 @@ zone_rigid_prim = UsdPhysics.RigidBodyAPI(prim)
 zone_rigid_prim.CreateKinematicEnabledAttr().Set(True)
 
 zone_velocity = 0 # global
-zone_surface_prim = PhysxSchema.PhysxSurfaceVelocityAPI(prim)
+zone_surface_prim = PhysxSchema.PhysxSurfaceVelocityAPI.Apply(prim)
+zone_rb = UsdPhysics.RigidBodyAPI(prim)
+zone_rb.CreateRigidBodyEnabledAttr().Set(True)
+zone_rb.CreateKinematicEnabledAttr().Set(True)
 zone_surf_attr = zone_surface_prim.CreateSurfaceVelocityAttr()
 zone_surf_attr.Set(Gf.Vec3f(0,zone_velocity,0))
 work_prim = stage.GetPrimAtPath('/root/Work')
@@ -171,18 +174,18 @@ for i in range(steps):
     if deguti_flag:
         pass
     
-    if limit >= get_world_transform_matrix(work_prim)[3][1]:
-        zone_surf_attr.Set(Gf.Vec3f(0,0,0))
-        # time.sleep(5)
-        print(get_world_transform_matrix(work_prim))
+    # if limit >= get_world_transform_matrix(work_prim)[3][1]:
+    #     zone_surf_attr.Set(Gf.Vec3f(0,0,0))
+    #     # time.sleep(5)
+    #     print(get_world_transform_matrix(work_prim))
         
-        current_work_pos = get_world_transform_matrix(work_prim)
-        work.set_world_pose(position=[init_work_pos[3][0],init_work_pos[3][1],init_work_pos[3][2]])
-        print(get_world_transform_matrix(work_prim))
-        for n in range(10):
-            simulation_app.update()
-            # time.sleep(1)
-        break
+    #     current_work_pos = get_world_transform_matrix(work_prim)
+    #     work.set_world_pose(position=[init_work_pos[3][0],init_work_pos[3][1],init_work_pos[3][2]])
+    #     print(get_world_transform_matrix(work_prim))
+    #     for n in range(10):
+    #         simulation_app.update()
+    #         # time.sleep(1)
+    #     break
     # time.sleep(sim_dt)
 timeline.stop()
 print("finish...")
