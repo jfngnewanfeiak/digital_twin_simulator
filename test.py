@@ -111,6 +111,9 @@ zone_rigid_prim.CreateKinematicEnabledAttr().Set(True)
 
 zone_velocity = 0 # global
 zone_surface_prim = PhysxSchema.PhysxSurfaceVelocityAPI(prim)
+zone_rb = UsdPhysics.RigidBodyAPI(prim)
+zone_rb.CreateRigitBodyEnabledAttr().Set(True)
+zone_rb.CreateKInematicEnabledAttr().Set(True)
 zone_surf_attr = zone_surface_prim.CreateSurfaceVelocityAttr()
 zone_surf_attr.Set(Gf.Vec3f(0,zone_velocity,0))
 work_prim = stage.GetPrimAtPath('/root/Work')
