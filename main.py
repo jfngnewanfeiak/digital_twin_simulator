@@ -68,7 +68,7 @@ def on_message(client, userdata, msg):
         # work_position = work_positions[-1]['coordinate']
         # work_yaw = np.rad2deg(work_positions[-1]['yaw']) - 90
         work_position = d['coordinate']
-        work_yaw = np.rad2deg(d['yaw']) - 90
+        work_yaw = np.rad2deg(d['yaw'])
     elif topic == 'ev3/data':
         global ev3_data
         global zone_velocity
