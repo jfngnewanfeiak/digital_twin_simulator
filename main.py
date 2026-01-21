@@ -33,6 +33,7 @@ from omni.timeline import get_timeline_interface
 from omni.isaac.dynamic_control import _dynamic_control as dc
 from omni.isaac.core.prims import RigidPrim
 import omni.kit.actions.core
+from omni.isaac.core.utils.rotations import euler_angles_to_quat
 
 
 MAX_SIM_TIME = 0.02
@@ -68,7 +69,7 @@ def on_message(client, userdata, msg):
         # work_position = work_positions[-1]['coordinate']
         # work_yaw = np.rad2deg(work_positions[-1]['yaw']) - 90
         work_position = d['coordinate']
-        work_yaw = np.rad2deg(d['yaw'])
+        work_yaw = np.rad2deg(d['yaw']) - 90
     elif topic == 'ev3/data':
         global ev3_data
         global zone_velocity
@@ -210,6 +211,8 @@ left_op = get_or_add_rotatexyz('/root/left_m_rotation_axis',stage)
 right_op = get_or_add_rotatexyz('/root/right_m_rotation_axis',stage)
 mperu = float(UsdGeom.GetStageMetersPerUnit(stage))
 work = RigidPrim('/root/Work')
+# xf = UsdGeom.Xformable(work)
+# rot_op = xf.AddRotateXYZOp()
 mag_attr = scene.GetGravityMagnitudeAttr()
 dir_attr = scene.GetGravityDirectionAttr()
 
@@ -217,6 +220,7 @@ print("mag time samples:", mag_attr.GetTimeSamples())
 print("dir time samples:", dir_attr.GetTimeSamples())
 
 score_list = []
+yaw_list = []
 use_yaw = None
 limit_flag = False
 pos_init,_ = work.get_world_pose()
@@ -228,10 +232,15 @@ for right_angle in angles:
         use_yaw = work_yaw
         
         # 整列用のやつ角度変更
-        right_op.Set((right_angle,0,0))
-        left_op.Set((-left_angle,0,0))
-        work.set_world_pose(position=pos_init,orientation=quat_xyzw_from_yaw_world(use_yaw))
-        
+        right_op.Set((-right_angle,0,0))
+        left_op.Set((left_angle,0,0))
+        # work.set_world_pose(position=pos_init,orientation=quat_xyzw_from_yaw_world(use_yaw))
+        work.set_world_pose(position=pos_init,orientation=euler_angles_to_quat(np.array([0, 0, use_yaw]), degrees=True))
+        # rot_op.Set((0, 0, use_yaw))
+
+        print("*"*20)
+        print(work.get_world_pose())
+        print("*"*20)
         # zoneのvelocity
         zone_surf_attr.Set(Gf.Vec3f(0,zone_velocity/mperu,0))
         print("*"*20)
@@ -258,8 +267,11 @@ for right_angle in angles:
                 # 整列のスコアを計算
                 score = inside_ratio(bbox,goal_bbox)
                 score_list.append(score)
-                work.set_world_pose(position=[init_work_pos[3][0],init_work_pos[3][1],init_work_pos[3][2]],
-                                    orientation=quat_xyzw_from_yaw_world(work_yaw))
+                M = get_world_transform_matrix(work_prim)
+                r00 = float(M[0][0])
+                r10 = float(M[1][0])
+                score_yaw = np.degrees(np.arctan2(r10,r00))
+                yaw_list.append(score_yaw)
                 limit_flag = True
                 break
         
@@ -269,14 +281,34 @@ for right_angle in angles:
         else:
             limit_flag = False
 
-right_idx = int(score_list.index(max(score_list)) / 5)
-left_idx = score_list.index(max(score_list)) % 5
-best_angle = {
-                        "right_angle": angles[right_idx],
-                        "left_angle": angles[left_idx]
-                    }
-best_angle_pub.publish(json.dumps(best_angle))
+# right_idx = int(score_list.index(max(score_list)) / len(angles))
+# left_idx = score_list.index(max(score_list)) % len(angles)
+# best_angle = {
+#                         "right_angle": angles[right_idx],
+#                         "left_angle": angles[left_idx]
+#                     }
+# best_angle_pub.publish(json.dumps(best_angle))
+print(f"score_list {score_list}")
+n_angle = len(angles)
 
+sorted_indices = sorted(
+    range(len(score_list)),
+    key=lambda i: score_list[i],
+    reverse=True
+)[:3]
+
+best_angles = []
+for idx in sorted_indices:
+    best_angles.append({
+        "right_angle": angles[idx // n_angle],
+        "left_angle":  angles[idx % n_angle],
+        "score": score_list[idx]
+    })
+print(f"score_list {score_list}")
+print(f"sorted score list {sorted(range(len(score_list)),key=lambda i : score_list[i],reverse=True)}")
+print(f"best_angles {best_angles}")
+print(f"yaw list {yaw_list}")
+best_angle_pub.publish(json.dumps(best_angles))
 # for i in range(steps):
 #     zone_surf_attr.Set(Gf.Vec3f(0,zone_velocity / mperu,0))
 #     simulation_app.update()
