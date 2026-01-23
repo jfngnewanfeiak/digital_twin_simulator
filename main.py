@@ -69,7 +69,7 @@ def on_message(client, userdata, msg):
         # work_position = work_positions[-1]['coordinate']
         # work_yaw = np.rad2deg(work_positions[-1]['yaw']) - 90
         work_position = d['coordinate']
-        work_yaw = np.rad2deg(d['yaw']) - 90
+        work_yaw = np.rad2deg(d['yaw'])
     elif topic == 'ev3/data':
         global ev3_data
         global zone_velocity
@@ -278,6 +278,7 @@ for right_angle in angles:
         # limit flag
         if limit_flag == False:
             score_list.append(0)
+            yaw_list.append(None)
         else:
             limit_flag = False
 
@@ -304,6 +305,7 @@ for idx in sorted_indices:
         "left_angle":  angles[idx % n_angle],
         "score": score_list[idx]
     })
+print(f"初期のyaw {use_yaw}")
 print(f"score_list {score_list}")
 print(f"sorted score list {sorted(range(len(score_list)),key=lambda i : score_list[i],reverse=True)}")
 print(f"best_angles {best_angles}")
