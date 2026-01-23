@@ -49,6 +49,42 @@ deguti_flag = False
 stop_flag = True
 
 angles = [0, 5, 10, 15, 20, 25]
+def unit(v):
+    v = np.asarray(v, dtype=float)
+    n = np.linalg.norm(v)
+    return v / (n + 1e-12)
+
+def y_axis_world_from_matrix(M):
+    """
+    M: 4x4 world transform matrix (Usd/OmniのGf.Matrix4d相当)
+    返り値: ワールド座標系での「そのprimのローカルY軸」(3,)
+    """
+    # 回転部分Rの「第2列」が、ローカルY軸がワールドでどこを向くか
+    # ※ Omniverse/Usdの行列は基本「列が軸方向」になる前提でこの取り方が安定
+    y = np.array([float(M[0][1]), float(M[1][1]), float(M[2][1])], dtype=float)
+    return unit(y)
+
+def y_axis_alignment_score(goal_prim, work_prim):
+    """
+    返り値:
+      score: 0〜1（1が完全一致）
+      angle_deg: 軸のズレ角（度）
+    """
+    Mg = get_world_transform_matrix(goal_prim)
+    Mw = get_world_transform_matrix(work_prim)
+
+    yg = y_axis_world_from_matrix(Mg)
+    yw = y_axis_world_from_matrix(Mw)
+
+    # なす角（0〜180）
+    dot = float(np.clip(np.dot(yg, yw), -1.0, 1.0))
+    angle = np.arccos(dot)  # rad
+    angle_deg = float(np.degrees(angle))
+
+    # スコア化：1 - (角度/180) で 0〜1
+    score = 1.0 - (angle_deg / 180.0)
+
+    return float(score),angle_deg
 def on_message(client, userdata, msg):
     topic = msg.topic
     global timeline_start
@@ -139,7 +175,8 @@ pub.connect()
 
 best_angle_pub = MQTT_PUB(ip_addr='192.168.11.20',port=1883,topic='best_angle',on_publish=None,on_connect=None,on_disconnect=None)
 best_angle_pub.connect()
-
+simlated_data_pub = MQTT_PUB(ip_addr='192.168.11.20',port=1883,topic='sim_data',on_publish=None,on_connect=None,on_disconnect=None)
+simlated_data_pub.connect()
 sub.connect()
 sub.subscribe()
 # Open the given environment in a new stage
@@ -265,13 +302,15 @@ for right_angle in angles:
                 bbox = bbox.ComputeAlignedBox()
 
                 # 整列のスコアを計算
-                score = inside_ratio(bbox,goal_bbox)
-                score_list.append(score)
+                # score = inside_ratio(bbox,goal_bbox)
+                # score_list.append(score)
                 M = get_world_transform_matrix(work_prim)
                 r00 = float(M[0][0])
                 r10 = float(M[1][0])
                 score_yaw = np.degrees(np.arctan2(r10,r00))
-                yaw_list.append(score_yaw)
+                score, angle_deg = y_axis_alignment_score(goal_prim, work_prim)
+                score_list.append(score)
+                yaw_list.append(angle_deg)
                 limit_flag = True
                 break
         
@@ -305,12 +344,33 @@ for idx in sorted_indices:
         "left_angle":  angles[idx % n_angle],
         "score": score_list[idx]
     })
-print(f"初期のyaw {use_yaw}")
+print(f"初期のyaw {np.deg2rad(use_yaw)}")
 print(f"score_list {score_list}")
 print(f"sorted score list {sorted(range(len(score_list)),key=lambda i : score_list[i],reverse=True)}")
 print(f"best_angles {best_angles}")
 print(f"yaw list {yaw_list}")
+
 best_angle_pub.publish(json.dumps(best_angles))
+sorted_all = sorted(
+    range(len(score_list)),
+    key=lambda i: score_list[i],
+    reverse=True
+)
+payload = {
+    # yaw（基準はこれまで話した定義のままでOK）
+    "init_yaw_rad": float(np.deg2rad(use_yaw)) if use_yaw is not None else None,
+
+    # DT評価結果
+    "score_list": [float(s) for s in score_list],
+    "sorted_score_indices": [int(i) for i in sorted_all],
+    "best_angles": best_angles,
+    "yaw_list": [None if y is None else float(y) for y in yaw_list],
+
+    # メタ（あると便利、不要なら消してOK）
+    "angles": angles,
+    "n_angle": len(angles)
+}
+simlated_data_pub.publish(json.dumps(payload, ensure_ascii=False))
 # for i in range(steps):
 #     zone_surf_attr.Set(Gf.Vec3f(0,zone_velocity / mperu,0))
 #     simulation_app.update()
